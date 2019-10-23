@@ -15,14 +15,41 @@ class node_color(Enum):
 
 
 class rbtree_node:
-    def __init__(self, value, color = node_color.BLACK, parent = None):
+    def __init__(self, value, color = node_color.RED, parent = None):
         self.value = value
         self.color = color
         self.parent = parent
         self.left_child = None
         self.right_child = None
 
-    
+    def flip_color(self):
+        if self.color == node_color.BLACK:
+            self.color = node_color.RED
+        else:
+            self.color = node_color.BLACK
+
+
+class rbtree:
+    def __init__(self, value):
+        self.root = rbtree_node(value, node_color.BLACK, None)
+        self.max = value
+        self.min = value
+        self.black_height = 1
+
+
+    def insertion(self, root, value):
+        #recurse through tree to find proper position to place new value as a red node
+        #if new node becomes root, make it black
+        #if new node's parent is red and new node is not root
+            #if new node's uncle (child on opposite side of tree from parent) is red
+                #make parent and uncle black
+                #make grandparent red
+                #repeat previous two steps up the chain from root
+            #if new node's uncle is black
+                #rotate appropriately (see left-left, left-right, right-left, and right-right cases)
+        pass
+
+
     def rotate(self, node):
         #create some helper variables to clear up code
         parent = node.parent
