@@ -30,24 +30,75 @@ class rbtree_node:
 
 
 class rbtree:
-    def __init__(self, value):
-        self.root = rbtree_node(value, node_color.BLACK, None)
-        self.max = value
-        self.min = value
-        self.black_height = 1
+    def __init__(self):
+        #self.root = rbtree_node(value, node_color.BLACK, None)
+        self.root = None
+        self.max = None
+        self.min = None
+        self.black_height = None
 
 
-    def insertion(self, root, value):
-        #recurse through tree to find proper position to place new value as a red node
-        #if new node becomes root, make it black
-        #if new node's parent is red and new node is not root
-            #if new node's uncle (child on opposite side of tree from parent) is red
-                #make parent and uncle black
-                #make grandparent red
-                #repeat previous two steps up the chain from root
-            #if new node's uncle is black
-                #rotate appropriately (see left-left, left-right, right-left, and right-right cases)
-        pass
+    def insertion(self, root=self.root, value):
+        #create node
+        node = rbtree_node(value)
+        #traverse through the tree and insert new node as a leaf
+        self.bst_insertion(root, node)
+        #recolor and rotate tree as necessary to balance
+        self.balance_tree(node)
+
+
+    def bst_insertion(self, root, node):
+        #insert at root if there is none
+        if root is None:
+            root = node
+            self.root = node
+        else:
+            if node.value < root.value:
+                #working on left half of tree
+                if root.left_child is None:
+                    root.left_child = node
+                    node.parent = root
+                else:
+                    self.bst_insertion(root.left_child, node)
+            else:
+                #working on right half of tree
+                if root.right_child is None:
+                    root.right_child = node
+                    node.parent = root
+                else:
+                    self.bst_insertion(root.right_child, node)
+
+
+    def balance_tree(self, node):
+        #Attempt to balance tree by recoloring first, then rotating if needed
+        #if node is root, make it black
+        if node is self.root:
+            node.color = node_color.BLACK
+        #node is not root
+        else:
+            #if node's parent is red
+            if node.parent.color == node_color.RED:
+                #create some helper variables to help with recoloring
+                parent = node.parent
+                grandparent = node.parent.parent
+                if parent == grandparent.left_child:
+                    uncle = grandparent.right_child
+                else:
+                    uncle = grandparent.left_child
+
+                #if node's uncle is red
+                if parent.color == uncle.color:
+                    #make parent and uncle black
+                    uncle.flip_color()
+                    parent.flip_color()
+                    #make grandparent red
+                    grandparent.flip_color()
+                    #call balance_tree on grandparent
+                    balance_tree(grandparent)
+                #if new node's uncle is black
+                else:
+                    #rotate appropriately (see left-left, left-right, right-left, and right-right cases)
+                    self.rotate(node)
 
 
     def rotate(self, node):
@@ -55,7 +106,7 @@ class rbtree:
         parent = node.parent
         grandparent = parent.parent
         temp_node = None
-        
+
         #check to see which case we are in
         if node == parent.left_child:
             #we are in one of the left cases
@@ -148,7 +199,6 @@ class rbtree:
                 #set temp_node's parent to grandparent
                 temp_node.parent = grandparent
 
-
                 #flip colors of parent and grandparent
                 parent.flip_color()
                 grandparent.flip_color()
@@ -158,7 +208,7 @@ class rbtree:
 
         #if there is no root, or the root has the value, return root
         if root == None or root.value == value:
-            logger.debug("Either root value equals value, or there is no root; returning root.")
+            logger.debug("Either root value equals value, or there is no root; returning root (or lack thereof).")
             return root
         #recurse through left tree if value less than root.value
         elif value < root.value:
