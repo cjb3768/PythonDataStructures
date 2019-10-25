@@ -52,6 +52,15 @@ class rbtree:
         self.balance_tree(node)
 
 
+    def delete(self, value, root=None):
+        if root is None:
+            root = self.root
+
+        #find node to delete
+        node = self.search(value, self.root)
+        #do rest
+
+
     def bst_insertion(self, root, node):
         #insert at root if there is none
         if root is None:
@@ -73,6 +82,47 @@ class rbtree:
                 else:
                     self.bst_insertion(root.right_child, node)
 
+
+    def bst_deletion(self, node):
+
+        #determine course of action based on whether node is a leaf, has one child, or has two children
+        if node.left_child is None and node.right_child is None:
+            #node is a leaf
+            #unlink node from its parent if it has one
+            if node.parent is not None:
+                if node.parent.left_child == node:
+                    node.parent.left_child = None
+                else:
+                    node.parent.right_child = None
+            else:
+                #if node has no parent, it is a root; set self.root to None
+                self.root = None
+
+
+        elif (node.left_child is not None and node.right_child is None) or (node.left_child is None and node.right_child is not None):
+            #node has one child; swap child into node's position and delete node
+            if node.left_child is not None:
+                child = node.left_child
+            else:
+                child = node.right_child
+
+            #link child to node's parent if it has one
+            if node.parent is not None:
+                if node.parent.left_child == node:
+                    node.parent.left_child = child
+                else:
+                    node.parent.right_child = child
+            else:
+                #if node has no parent, it is a root; set self.root to the child
+                self.root = child
+
+            child.parent = node.parent
+        else:
+            #node has two children; need to do some rotation
+            pass
+
+        #delete node (this should be the last reference to the node, so it should be gone)
+        del node
 
     def balance_tree(self, node):
         #Attempt to balance tree by recoloring first, then rotating if needed
