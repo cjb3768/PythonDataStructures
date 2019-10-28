@@ -12,6 +12,7 @@ logger = logging.getLogger("datastructures.rbtree")
 class node_color(Enum):
     BLACK = 0
     RED = 1
+    DOUBLE_BLACK = 2
 
 
 class rbtree_node:
@@ -25,7 +26,10 @@ class rbtree_node:
     def flip_color(self):
         if self.color == node_color.BLACK:
             self.color = node_color.RED
+        elif self.color == node_color.RED:
+            self.color = node_color.BLACK
         else:
+            #special case where node is Double Black, only comes up in deletion
             self.color = node_color.BLACK
 
     def __str__(self):
@@ -52,15 +56,6 @@ class rbtree:
         self.balance_tree(node)
 
 
-    def delete(self, value, root=None):
-        if root is None:
-            root = self.root
-
-        #find node to delete
-        node = self.search(value, self.root)
-        #do rest
-
-
     def bst_insertion(self, root, node):
         #insert at root if there is none
         if root is None:
@@ -83,7 +78,66 @@ class rbtree:
                     self.bst_insertion(root.right_child, node)
 
 
-    def bst_deletion(self, node):
+    def find_minima(self, node):
+        #find the minimum value of a tree starting at a given node
+        if node.left_child is not None:
+            return self.find_minima(node.left_child)
+        else:
+            return node
+
+
+    def find_maxima(self, node):
+        #find the maximum value of a tree starting at a given node
+        if node.right_child is not None:
+            return self.find_maxima(node.right_child)
+        else:
+            return node
+
+    def find_predecessor(self, node):
+        #if a node has a left child, it's predecessor is the maximum value of its left subtree
+        if node.left_child is not None:
+            return self.find_maxima(node.left_child)
+        #otherwise, if a predecessor exists, it is the lowest node in the tree y such that it is an ancestor of our node whose right child is also an ancestor of our node
+        else:
+            x = node
+            y = node.parent
+            while y is not None and y.left_child == x:
+                x = y
+                y = y.parent
+            return y
+
+    def find_successor(self, node):
+        #if a node has a right child, it's successor is the minimum value of its right subtree
+        if node.right_child is not None:
+            return self.find_minima(node.right_child)
+        #otherwise, if a successor exists, it is the lowest node in the tree y such that it is an ancestor of our node whose left child is also an ancestor of our node
+        else:
+            x = node
+            y = node.parent
+            while y is not None and y.right_child == x:
+                x = y
+                y = y.parent
+            return y #returns none if there is no successor, or y if there is one
+
+
+    def transplant(self, node, child):
+        #reseat child in place of node in a tree structure
+        if node.parent is None:
+            #node was the root; make child the root
+            self.root = child
+        else:
+            #determine which child of node.parent node was and reassign that pointer to child
+            if node.parent.left_child == node:
+                node.parent.left_child = child
+            else:
+                node.parent.right_child = child
+        if child is not None:
+            #if child exists, connect it to node.parent
+            child.parent = node.parent
+
+    def delete(self, node, root=None):
+        if root is None:
+            root = self.root
 
         #determine course of action based on whether node is a leaf, has one child, or has two children
         if node.left_child is None and node.right_child is None:
@@ -118,11 +172,28 @@ class rbtree:
 
             child.parent = node.parent
         else:
-            #node has two children; need to do some rotation
-            pass
+            #node has two children; need to replace the value at the root with an inorder successor
+            #find minima of node's right child (recurse through left children until you hit a leaf); this is node's inorder successor
+            inorder_successor = self.find_successor(node.right_child)
+            #set successor's parent's left child to None, delinking it from successor
+            inorder_successor.parent.left_child = None
+            #set sucessor's left and right children to node's left and right children
+            inorder_successor.left_child = node.left_child
+            node.left_child.parent = inorder_successor
+            inorder_successor.right_child = node.right_child
+            node.right_child.parent = inorder_successor
+            #if node has a parent, link m to it's parent; otherwise make it the root.
+            if node.parent is not None:
+                if node.parent.left_child == node:
+                    node.parent.left_child = inorder_successor
+                else:
+                    node.parent.right_child = inorder_successor
+            else:
+                #if node has no parent, it is a root; set self.root to successor
+                self.root = inorder_successor
 
-        #delete node (this should be the last reference to the node, so it should be gone)
-        del node
+        #handle recoloring
+
 
     def balance_tree(self, node):
         #Attempt to balance tree by recoloring first, then rotating if needed
@@ -160,7 +231,6 @@ class rbtree:
                     logger.debug("Calling rotation: node is {}, parent is {}, grandparent is {}, uncle is {}".format(node, parent, grandparent, uncle))
                     #self.print_inorder()
                     self.rotate(node)
-
 
     def rotate(self, node):
         #create some helper variables to clear up code
