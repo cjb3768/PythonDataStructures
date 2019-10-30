@@ -12,7 +12,6 @@ logger = logging.getLogger("datastructures.rbtree")
 class node_color(Enum):
     BLACK = 0
     RED = 1
-    DOUBLE_BLACK = 2
 
 
 class rbtree_node:
@@ -23,14 +22,13 @@ class rbtree_node:
         self.left_child = None
         self.right_child = None
 
+
     def flip_color(self):
         if self.color == node_color.BLACK:
             self.color = node_color.RED
-        elif self.color == node_color.RED:
-            self.color = node_color.BLACK
         else:
-            #special case where node is Double Black, only comes up in deletion
             self.color = node_color.BLACK
+
 
     def __str__(self):
         return "({},{})".format(self.value, self.color.name)
@@ -93,6 +91,7 @@ class rbtree:
         else:
             return node
 
+
     def find_predecessor(self, node):
         #if a node has a left child, it's predecessor is the maximum value of its left subtree
         if node.left_child is not None:
@@ -105,6 +104,7 @@ class rbtree:
                 x = y
                 y = y.parent
             return y
+
 
     def find_successor(self, node):
         #if a node has a right child, it's successor is the minimum value of its right subtree
@@ -135,63 +135,107 @@ class rbtree:
             #if child exists, connect it to node.parent
             child.parent = node.parent
 
-    def delete(self, node, root=None):
+
+    def delete(self, value, root=None):
         if root is None:
             root = self.root
 
-        #determine course of action based on whether node is a leaf, has one child, or has two children
-        if node.left_child is None and node.right_child is None:
-            #node is a leaf
-            #unlink node from its parent if it has one
-            if node.parent is not None:
-                if node.parent.left_child == node:
-                    node.parent.left_child = None
-                else:
-                    node.parent.right_child = None
-            else:
-                #if node has no parent, it is a root; set self.root to None
-                self.root = None
+        #find node from value
+        node = self.search(value, root)
+        #return if no such node
+        if node is None:
+            logger.debug("No node with value {} found. Deletion failed".format(value))
+            return
 
+        #back up node; we will need it for position information and rebalancing
+        working_node = node
+        working_node_original_color = node.color
 
-        elif (node.left_child is not None and node.right_child is None) or (node.left_child is None and node.right_child is not None):
-            #node has one child; swap child into node's position and delete node
-            if node.left_child is not None:
-                child = node.left_child
-            else:
-                child = node.right_child
-
-            #link child to node's parent if it has one
-            if node.parent is not None:
-                if node.parent.left_child == node:
-                    node.parent.left_child = child
-                else:
-                    node.parent.right_child = child
-            else:
-                #if node has no parent, it is a root; set self.root to the child
-                self.root = child
-
-            child.parent = node.parent
+        #determine course of action based on what children node has
+        #node has no left child
+        if node.left_child is None:
+            child = node.right_child
+            self.transplant(node, node.right_child)
+        #node has no right child, but has a left child
+        elif node.right_child is None:
+            child = node.left_child
+            self.transplant(node, node.left_child)
+        #node has two children
         else:
-            #node has two children; need to replace the value at the root with an inorder successor
-            #find minima of node's right child (recurse through left children until you hit a leaf); this is node's inorder successor
-            inorder_successor = self.find_successor(node.right_child)
-            #set successor's parent's left child to None, delinking it from successor
-            inorder_successor.parent.left_child = None
-            #set sucessor's left and right children to node's left and right children
-            inorder_successor.left_child = node.left_child
-            node.left_child.parent = inorder_successor
-            inorder_successor.right_child = node.right_child
-            node.right_child.parent = inorder_successor
-            #if node has a parent, link m to it's parent; otherwise make it the root.
-            if node.parent is not None:
-                if node.parent.left_child == node:
-                    node.parent.left_child = inorder_successor
-                else:
-                    node.parent.right_child = inorder_successor
+            #get successor to node
+            working_node = self.find_minima(node.right_child)
+            working_node_original_color = working_node.color
+            child = working_node.right_child
+
+            if working_node.parent == node:
+                if child is not None:
+                    child.parent = working_node
             else:
-                #if node has no parent, it is a root; set self.root to successor
-                self.root = inorder_successor
-        #handle recoloring
+                self.transplant(working_node, working_node.right_child)
+                working_node.right_child = node.right_child
+                working_node.right_child.parent = working_node
+            self.transplant(node, working_node)
+            working_node.left_child = node.left_child
+            working_node.left_child.parent = working_node
+            working_node.color = node.color
+        if working_node_original_color == node_color.BLACK:
+            #call recoloring function
+            logger.debug("We deleted or moved a black node; we need to do stuff here")
+            self.deletion_rebalance(child)
+        #
+        # #determine course of action based on whether node is a leaf, has one child, or has two children
+        # if node.left_child is None and node.right_child is None:
+        #     #node is a leaf
+        #     #unlink node from its parent if it has one
+        #     if node.parent is not None:
+        #         if node.parent.left_child == node:
+        #             node.parent.left_child = None
+        #         else:
+        #             node.parent.right_child = None
+        #     else:
+        #         #if node has no parent, it is a root; set self.root to None
+        #         self.root = None
+        #
+        #
+        # elif (node.left_child is not None and node.right_child is None) or (node.left_child is None and node.right_child is not None):
+        #     #node has one child; swap child into node's position and delete node
+        #     if node.left_child is not None:
+        #         child = node.left_child
+        #     else:
+        #         child = node.right_child
+        #
+        #     #link child to node's parent if it has one
+        #     if node.parent is not None:
+        #         if node.parent.left_child == node:
+        #             node.parent.left_child = child
+        #         else:
+        #             node.parent.right_child = child
+        #     else:
+        #         #if node has no parent, it is a root; set self.root to the child
+        #         self.root = child
+        #
+        #     child.parent = node.parent
+        # else:
+        #     #node has two children; need to replace the value at the root with an inorder successor
+        #     #find minima of node's right child (recurse through left children until you hit a leaf); this is node's inorder successor
+        #     inorder_successor = self.find_successor(node.right_child)
+        #     #set successor's parent's left child to None, delinking it from successor
+        #     inorder_successor.parent.left_child = None
+        #     #set sucessor's left and right children to node's left and right children
+        #     inorder_successor.left_child = node.left_child
+        #     node.left_child.parent = inorder_successor
+        #     inorder_successor.right_child = node.right_child
+        #     node.right_child.parent = inorder_successor
+        #     #if node has a parent, link m to it's parent; otherwise make it the root.
+        #     if node.parent is not None:
+        #         if node.parent.left_child == node:
+        #             node.parent.left_child = inorder_successor
+        #         else:
+        #             node.parent.right_child = inorder_successor
+        #     else:
+        #         #if node has no parent, it is a root; set self.root to successor
+        #         self.root = inorder_successor
+        # #handle recoloring
 
 
     def insertion_rebalance(self, node):
@@ -230,6 +274,10 @@ class rbtree:
                     logger.debug("Calling rotation: node is {}, parent is {}, grandparent is {}, uncle is {}".format(node, parent, grandparent, uncle))
                     #self.print_inorder()
                     self.insertion_rotation(node)
+
+
+    def deletion_rebalance(self, node):
+        pass
 
 
     def left_rotate(self, node):

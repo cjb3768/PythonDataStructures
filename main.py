@@ -52,5 +52,27 @@ def main():
     #searching for a valid entry should print out it's value and color
     print(tree.search(13, tree.root))
 
+    #test basic deletion
+    #delete a node with no children
+    logger.debug("attempting to delete node with value 13")
+    tree.delete(13)
+    tree.print_inorder()
+    #delete a node with only a right child
+    logger.debug("attempting to delete node with value 10")
+    tree.delete(10)
+    tree.print_inorder()
+    #delete a node with two children
+    logger.debug("attempting to delete node with value 6") #error occurs on line 186, there is no child to assign the value to
+    tree.delete(6)
+    tree.print_inorder()
+    #delete two more nodes, then one with only a left child
+    logger.debug("attempting to delete nodes with values 5 and 9")
+    tree.delete(5)
+    tree.delete(9)
+    logger.debug("attempting to delete node with value 15")
+    tree.delete(15)
+    tree.print_inorder()
+
+
 if __name__ == "__main__":
     main()
